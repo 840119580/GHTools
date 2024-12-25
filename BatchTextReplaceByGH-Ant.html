@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<!-- 
+  Author: GH 
+  GitHub: 
+  Last Updated: 2024-11-27-16:20:52
+  Version: 0.3
+  Description: Batch text replacement by rulesArray
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>GHTools</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/4.16.13/antd.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/4.16.13/antd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #rules-container {
+            margin-top: 0px;
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        #rulesLabel {
+            margin-top: 20px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .highlight {
+            background-color: #ffe6e6;
+        }
+       .text-input {
+            width: 100%;
+            height: 200px;
+        }
+
+    </style>
+</head>
+<body>
+    <h2>GHTools colleciton</h2>
+
+    <!-- 标签切换 -->
+    <div style="margin-bottom: 20px;">
+      <button class="ant-btn ant-btn-default" onclick="showTab('tab1')" id="tab1-btn">文本批量替换</button>
+      <button class="ant-btn ant-btn-default" onclick="showTab('tab2')" id="tab2-btn">颜色调整器</button>
+      <button class="ant-btn ant-btn-default" onclick="showTab('tab3')" id="tab3-btn">其他功能</button>
+  </div>
+
+  
+
+  <!-- 标签内容 -->
+  <div class="tab-content active" id="tab1">
+    <h3>文本批量替换</h3>
+    <div>
+        <label for="input" style="margin-right: 8px;">需要处理的文本：</label>
+        <textarea id="input" class="ant-input" rows="4"></textarea>
+    </div>
+    <br />
+    <button class="ant-btn ant-btn-primary" onclick="showRuleInput()">添加新规则</button>
+    
+    <div id="rule-input-div" class="hidden" style="margin-top: 20px;">
+        <label for="from" style="margin-right: 8px;">从：</label>
+        <input type="text" id="from" class="ant-input" style="width: 200px;" />
+        <label for="to" style="margin-right: 8px;">替换为：</label>
+        <input type="text" id="to" class="ant-input" style="width: 200px;" />
+        <button class="ant-btn ant-btn-primary" onclick="addRule()">保存规则</button>
+    </div>
+
+    <div  id ="rulesLabel"><label for="rules">现有规则</label></div>
+    
+    <div id="rules-container">
+    </div>
+    <button class="ant-btn ant-btn-default" onclick="applyRules()">按规则处理</button>
+
+    <div style="margin-top: 20px;">
+        <label for="output">输出文本：</label>
+        <textarea id="output" class="ant-input" rows="4" readonly="readonly"></textarea>
+    </div>
+
+  </div>
+
+  <div class="tab-content" id="tab2">
+    <h3>RGBA颜色调整器</h3>
+    <!-- <p>待开发...</p> -->
+    <div style="margin-top: 20px;">
+      <label for="rgba-input">输入 RGBA 或 RGB 值：</label><input id="rgba-input" type="text" style="width: 200px;" class="ant-input" placeholder="如：200,100,200,0.2" oninput="updateColorInput()">
+      <label for="rgba-input">或者输入16进制颜色值：</label><input id="hex-input" type="text" style="width: 200px;" class="ant-input" placeholder="如：#C0E5BD" oninput="hexToRgba()">
+      <br>
+      <label for="rgba-input-r">输入 R 值：</label><output id="rgba-input-r-output">0</output>
+
+<input id="rgba-input-r" type="range" min="0" max="255" value="0" class="ant-input" oninput="document.getElementById('rgba-input-r-output').value = this.value">
+
+<label for="rgba-input-g">输入 G 值：</label><output id = "rgba-input-g-output">0</output>
+<input id="rgba-input-g" type="range" min="0" max="255" value="0" class="ant-input" oninput="document.getElementById('rgba-input-g-output').value = this.value">
+
+
+<label for="rgba-input-b">输入 B 值：</label><output id="rgba-input-b-output">0</output>
+<input id="rgba-input-b" type="range" min="0" max="255" value="0" class="ant-input" oninput="document.getElementById('rgba-input-b-output').value = this.value">
+
+
+<label for="rgba-input-a">输入 A 值：</label><output id="rgba-input-a-output">1</output>
+<input id="rgba-input-a" type="range" min="0" max="1" step="0.01" value="1" class="ant-input" oninput="document.getElementById('rgba-input-a-output').value = this.value">
+
+
+  </div>
+  
+  <div style="margin-top: 20px;">
+      <label for="color-display">对应颜色：</label>
+      <div id="color-display" style="width: 100px; height: 100px; border: 1px solid #000;"></div>
+  </div>
+  <button class="ant-btn ant-btn-default" style="margin-top: 20px;" onclick="copyColorCode()">复制RGBA颜色代码</button>
+  <button class="ant-btn ant-btn-default" style="margin-top: 10px;" onclick="copyColorCodeRGB()">复制RGB颜色代码(Alpha通道补偿)</button>
+  <button class="ant-btn ant-btn-default" style="margin-top: 10px;" onclick="copyColorCodeHex()">复制Hex颜色代码(Alpha通道补偿)</button>
+
+  <script>
+
+const rgbaInputR = document.getElementById('rgba-input-r');
+const rgbaInputG = document.getElementById('rgba-input-g');
+const rgbaInputB = document.getElementById('rgba-input-b');
+const rgbaInputA = document.getElementById('rgba-input-a');
+const colorDisplay = document.getElementById('color-display');
+
+function updateColor() {
+    const r = rgbaInputR.value;
+    const g = rgbaInputG.value;
+    const b = rgbaInputB.value;
+    const a = rgbaInputA.value;
+    
+    // 使用RGBA格式设置颜色
+    const rgbaValue = `rgba(${r}, ${g}, ${b}, ${a})`;
+    colorDisplay.style.backgroundColor = rgbaValue;
+// 更新rgbaInput的值
+document.getElementById('rgba-input').value = `rgba(${r},${g},${b},${a})`; 
+    // // 可选：在控制台输出 RGBA 值以供调试
+    // console.log(`输入的 RGBA 值: ${rgbaValue}`);
+}
+
+// 为每个滑块添加输入事件监听器
+rgbaInputR.addEventListener('input', updateColor);
+rgbaInputG.addEventListener('input', updateColor);
+rgbaInputB.addEventListener('input', updateColor);
+rgbaInputA.addEventListener('input', updateColor);
+
+function updateColorInput() {
+  const input = document.getElementById('rgba-input').value;
+  const rgbaValues = input.match(/[\d.]+/g).map(Number);
+
+    // 默认 A 值为 1 如果不提供
+    if (rgbaValues.length === 3) {
+        rgbaValues.push(1);
+    }
+
+    // 确保有四个值
+    const [r, g, b, a] = rgbaValues;
+
+    // 更新滑动条和输出
+    document.getElementById('rgba-input-r').value = r;
+    document.getElementById('rgba-input-g').value = g;
+    document.getElementById('rgba-input-b').value = b;
+    document.getElementById('rgba-input-a').value = a;
+    document.getElementById('rgba-input-r-output').value = r;
+    document.getElementById('rgba-input-g-output').value = g;
+    document.getElementById('rgba-input-b-output').value = b;
+    document.getElementById('rgba-input-a-output').value = a;
+    // 更新颜色显示（可以根据具体需求修改）
+    const rgbaValue = `rgba(${r}, ${g}, ${b}, ${a})`;
+    colorDisplay.style.backgroundColor = rgbaValue;
+    // // 可选：在控制台输出 RGBA 值以供调试
+    // console.log(`输入的 RGBA 值: ${rgbaValue}`);
+}
+
+function copyColorCode() {
+    const k = document.getElementById('rgba-input').value? document.getElementById('rgba-input').value : "rgba(0,0,0,1)";
+    const rgbaValue = k.match(/[\d.]+/g).map(Number);
+    // 默认 A 值为 1 如果不提供
+    if (rgbaValue.length === 3) {
+      rgbaValue.push(1);
+    }
+    // 确保有四个值
+    const [r, g, b, a] = rgbaValue;
+    const rgbaValueResult = `rgba(${r}, ${g}, ${b}, ${a})`;
+    const copyInput = document.createElement('input');
+    copyInput.value = rgbaValueResult;
+    document.body.appendChild(copyInput);
+    copyInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(copyInput);
+    alert('已复制RGBA颜色代码到剪贴板');
+}
+
+function copyColorCodeRGB() {
+    const k = document.getElementById('rgba-input').value? document.getElementById('rgba-input').value : "rgba(0,0,0,1)";
+    const rgbaValue = k.match(/[\d.]+/g).map(Number);
+    // 默认 A 值为 1 如果不提供
+    if (rgbaValue.length === 3) {
+      rgbaValue.push(1);
+    }
+    // 确保有四个值
+    const [r, g, b, a] = rgbaValue;
+    const rgbaValueResult = `rgb(${r}, ${g}, ${b})`;
+    const copyInput = document.createElement('input');
+    copyInput.value = rgbaToRgb(r, g, b, a, "rgb");
+    document.body.appendChild(copyInput);
+    copyInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(copyInput);
+    alert('已复制RGB颜色代码(Alpha通道补偿结果)到剪贴板');
+}
+
+function rgbaToRgb(r, g, b, a, key) {
+    // 将RGBA值限制在0-255范围内
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    a = Math.min(1, Math.max(0, a));
+
+    // 计算RGB值
+    let rNew = Math.round((r * a) + (255 * (1 - a)));
+    let gNew = Math.round((g * a) + (255 * (1 - a)));
+    let bNew = Math.round((b * a) + (255 * (1 - a)));
+    if (key === "hex") {
+    return `#${rNew.toString(16).padStart(2, "0")}${gNew.toString(16).padStart(2, "0")}${bNew.toString(16).padStart(2, "0")}`;
+    }else if (key === "rgb") {
+    return `rgb(${rNew}, ${gNew}, ${bNew})`;
+    }
+}
+
+// 复制16进制颜色代码
+function copyColorCodeHex() {
+    const k = document.getElementById('rgba-input').value? document.getElementById('rgba-input').value : "rgba(0,0,0,1)";   // 获取输入框的值
+    const rgbaValue = k.match(/[\d.]+/g).map(Number);   // 提取rgba值
+    // 默认 A 值为 1 如果不提供
+    if (rgbaValue.length === 3) {
+      rgbaValue.push(1);
+    }
+    // 确保有四个值
+    const [r, g, b, a] = rgbaValue;
+    // if (a !== 1) {
+    //   alert('Alpha通道值不为1，无法复制16进制颜色代码');
+    //   return;
+    // }
+    hexValue = rgbaToRgb(r, g, b, a, "hex");
+    const copyInput = document.createElement('input');
+    copyInput.value = hexValue.toUpperCase();
+    document.body.appendChild(copyInput);
+    copyInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(copyInput);
+    alert('已复制16进制颜色代码到剪贴板');
+}
+
+// 输入16进制颜色值转换为rgba值
+function hexToRgba() {
+  const hexInput = document.getElementById('hex-input').value;
+  const hexValue = hexInput.replace("#", "");
+  const r = parseInt(hexValue.slice(0, 2), 16);
+  const g = parseInt(hexValue.slice(2, 4), 16);
+  const b = parseInt(hexValue.slice(4, 6), 16);
+  const a = 1;   // 默认为1
+  document.getElementById('rgba-input-r').value = r;
+  document.getElementById('rgba-input-g').value = g;
+  document.getElementById('rgba-input-b').value = b;
+  document.getElementById('rgba-input-a').value = a;
+  document.getElementById('rgba-input-r-output').value = r;
+  document.getElementById('rgba-input-g-output').value = g;
+  document.getElementById('rgba-input-b-output').value = b;
+  document.getElementById('rgba-input-a-output').value = a;
+  document.getElementById('rgba-input').value = `rgba(${r},${g},${b},${a})`;
+  const rgbaValue = `rgba(${r}, ${g}, ${b}, ${a})`;
+  colorDisplay.style.backgroundColor = rgbaValue;
+  // // 可选：在控制台输出 RGBA 值以供调试
+  // console.log(`输入的 RGBA 值: ${rgbaValue}`);
+}
+
+</script>
+
+  
+    
+  </div>
+
+  <div class="tab-content active" id="tab3">
+    <h3>待开发</h3>
+  </div>
+    <script>
+      
+      //初始进入页面高亮第一个标签
+      showTab("tab1");
+
+  // 显示标签内容函数
+  function showTab(tabName) {   // tabName: tab1, tab2
+        var i, tabContent;  // 定义变量i和tabContent
+        tabContent = document.getElementsByClassName("tab-content");  // 获取所有标签内容
+        for (i = 0; i < tabContent.length; i++) {    // 遍历所有标签内容
+            tabContent[i].classList.remove("active");  // 隐藏所有标签内容
+        } 
+        document.getElementById(tabName).classList.add("active");  // 显示当前标签内容
+        document.getElementById(`${tabName}-btn`).classList.add("ant-btn-primary");  // 高亮当前标签按钮
+        // 获取按钮总数并给除了当前按钮之外的按钮取消高亮
+        var tabBtns = document.querySelectorAll(".ant-btn-default");
+        for (i = 0; i < tabBtns.length; i++) {
+            if (tabBtns[i].id!== `${tabName}-btn`) {
+                tabBtns[i].classList.remove("ant-btn-primary");
+            } else {
+                tabBtns[i].classList.add("ant-btn-primary");
+            }
+        }
+        
+    }
+      // 存储规则的数组
+      var rulesArray = [];
+  
+      // 应用规则函数
+      function applyRules() {
+        var inputText = document.getElementById("input").value;
+        var outputText = inputText;
+  
+        // 应用所有规则
+        rulesArray.forEach(function (rule) {
+              if (rule.caseInsensitive) {
+              // 如果勾选了"不区分大小写"，使用不区分大小写的正则表达式
+              var regex = new RegExp(rule.from, 'gi');
+              outputText = outputText.replace(regex, rule.to);
+          } else {
+              // 区分大小写的替换
+              outputText = outputText.split(rule.from).join(rule.to);
+          }
+      });
+  
+        document.getElementById("output").value = outputText;
+      }
+  
+      // 添加规则函数
+      function addRule() {
+        var from = document.getElementById("from").value;
+        var to = document.getElementById("to").value;
+      //   var isChecked = document.getElementById("gi").checked; // 匹配大小写checkbox
+  
+        if (from && to) {
+          rulesArray.push({ from: from, to: to ,id: rulesArray.length, caseInsensitive: false });
+          var rulesContainer = document.getElementById("rules-container");
+          var newRuleDiv = document.createElement("div");
+          newRuleDiv.style.marginBottom = "10px";
+          // 给规则添加删除按钮
+          var deleteButton = document.createElement("button");
+          deleteButton.style.marginLeft = "10px";
+          deleteButton.style.marginRight = "10px";
+          deleteButton.className = "ant-btn ant-btn-danger";
+          deleteButton.onclick = function () {
+            // 从数组中移除规则
+            rulesArray = rulesArray.filter(function (rule) {
+              return rule.from !== from || rule.to !== to;
+            });
+            newRuleDiv.remove();
+          };
+          deleteButton.innerHTML = "删除";
+          // 给规则添加不区分大小写checkbox 更新v0.2
+          var giCheckbox = document.createElement("input");
+          giCheckbox.type = "checkbox";
+          giCheckbox.id = `gi-${rulesArray.length - 1}`;
+          giCheckbox.style.marginLeft = "10px";
+          // giCheckbox.className = "ant-checkbox-wrapper";
+          giCheckbox.onclick = function () {
+          // 当复选框状态变化时更新当前规则的caseInsensitive属性
+                  var ruleToUpdate = rulesArray.find(function (rule) {
+                      return rule.id === parseInt(giCheckbox.id.split("-")[1]);
+                  });
+                  if(ruleToUpdate){
+                      ruleToUpdate.caseInsensitive = giCheckbox.checked;
+                  }
+          };
+          var giLabel = document.createElement("label");
+          giLabel.htmlFor = giCheckbox.id;
+          giLabel.innerHTML = "不区分大小写";
+          
+          newRuleDiv.className = "rule";
+          newRuleDiv.innerHTML = `从：${from} 替换为：${to}`;
+          // newRuleDiv.appendChild(deleteButton);
+          // 先插入删除按钮到最前面 v0.3
+          newRuleDiv.insertBefore(deleteButton, newRuleDiv.firstChild);
+          rulesContainer.appendChild(newRuleDiv);
+          newRuleDiv.appendChild(giCheckbox);
+          newRuleDiv.appendChild(giLabel);
+  
+          document.getElementById("from").value = "";
+          document.getElementById("to").value = "";
+        }
+      }
+  
+      // 显示规则输入框函数
+      function showRuleInput() {
+        var ruleInputDiv = document.getElementById("rule-input-div");
+        ruleInputDiv.classList.remove("hidden");
+      }     
+      
+    </script>
+</body>
+</html>
